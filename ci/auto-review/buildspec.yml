@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - npm init -y
+      - npm install @aws-sdk/client-bedrock-runtime @octokit/rest
+      - echo "▶︎ Load GitHub App credentials"
+      - export GITHUB_APP_ID=$(aws ssm get-parameter --name "CodepipelineGitHubAppId" --query "Parameter.Value" --output text)
+      - export GITHUB_APP_PRIVATE_KEY=$(aws ssm get-parameter --name "CodepipelineGitHubAppPrivateKey" --with-decryption --query "Parameter.Value" --output text | sed 's/\\n/\n/g')
+      - export GITHUB_REPOSITORY_OWNER=$(aws ssm get-parameter --name "CodepipelineGitHubRepoOwner" --query "Parameter.Value" --output text)
+      - export GITHUB_REPOSITORY_NAME=$(aws ssm get-parameter --name "CodepipelineGitHubRepoName" --query "Parameter.Value" --output text)
+
+  build:
+    commands:
+      - echo "▶︎ Run PR review via Claude"
+      - node shell/codepipeline/scripts/generate-token.js
+      - node shell/codepipeline/scripts/review-with-claude.js
+    on-failure: ABORT
+
+artifacts:
+  files:
+    - '**/*.js'
